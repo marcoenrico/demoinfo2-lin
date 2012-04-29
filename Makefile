@@ -6,9 +6,9 @@ PROTO_SRC_FILES=$(wildcard *.proto)
 PROTO_CPP_FILES=$(addprefix generated_proto/,$(PROTO_SRC_FILES:.proto=.pb.cc))
 PROTO_OBJ_FILES=$(PROTO_CPP_FILES:.cc=.o)
 
-LD_FLAGS=-lsnappy -lprotobuf -L/usr/local/lib
-CC_FLAGS=-I/usr/local/include
-PROTOBUF_FLAGS=-I/usr/local/include
+LD_FLAGS=-lsnappy -lprotobuf -lpthread -L/usr/local/lib
+CC_FLAGS=-I/usr/include
+PROTOBUF_FLAGS=-I/usr/include
 
 all: ${EXECUTABLE}
 

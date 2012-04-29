@@ -1,3 +1,7 @@
+Note Marco: Same thing released by Armin. I just added GNU/Linux specific
+stuff. Build tested on debian-squeeze.
+
+------------------------------------------------------------------------
 Note Armin: This is the same thing as was released by Valve just that
 windows specific stuff was changed so that it compiles on OS X (and
 hopefully Linux).

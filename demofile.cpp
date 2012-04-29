@@ -23,6 +23,7 @@
 //===========================================================================//
 
 #include <assert.h>
+#include <stdio.h>
 #include "demofile.h"
 #include "snappy.h"
 

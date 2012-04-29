@@ -22,6 +22,7 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 //===========================================================================//
 
+#include <stdio.h>
 #include "demofiledump.h"
 
 int main( int argc, char *argv[] )
