@@ -6,7 +6,8 @@ PROTO_SRC_FILES=$(wildcard *.proto)
 PROTO_CPP_FILES=$(addprefix generated_proto/,$(PROTO_SRC_FILES:.proto=.pb.cc))
 PROTO_OBJ_FILES=$(PROTO_CPP_FILES:.cc=.o)
 
-LD_FLAGS=-lsnappy -lprotobuf -lpthread -L/usr/local/lib
+LD_FLAGS=
+LIBRARIES = -lsnappy -lprotobuf -lpthread
 CC_FLAGS=-I/usr/include
 PROTOBUF_FLAGS=-I/usr/include
 
@@ -21,7 +22,7 @@ generated_proto/%.pb.cc: %.proto
 	protoc ${PROTO_SRC_FILES} ${PROTOBUF_FLAGS} -I. --cpp_out=generated_proto
 
 ${EXECUTABLE}: ${PROTO_OBJ_FILES} ${OBJ_FILES}
-	g++ ${LD_FLAGS} -o $@ ${OBJ_FILES} ${PROTO_OBJ_FILES}
+	g++ ${LD_FLAGS} -o $@ ${OBJ_FILES} ${PROTO_OBJ_FILES} ${LIBRARIES}
 
 .cpp.o: ${CPP_FILES}
 	g++ ${CC_FLAGS} -c -o $@ $<
