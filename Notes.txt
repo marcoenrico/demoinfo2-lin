@@ -1,0 +1,17 @@
+This file contains notes on how the protocols DOTA 2 uses to communicate appear to work.
+
+CDOTAUserMsg_MiniCamKillInfo has the info about the damage considered to have killed a given
+hero. This is most likely the same info that is displayed on the window with the card.
+
+CDOTAUserMsg_CombatHeroPositions probably contains a heroes current position
+CMsgVector2D is defined in netmessage.proto it looks like it may usually contain the health
+of the hero as well. This could be quite straight forward.
+
+dota_modifiers.proto appears just to contain the info for the buffs and debuffs, as well as time remaining on teleport, thus metrics of long a hero had left on a port when stunned or killed could be useful,
+
+It's unclear if the DOTA specific messages at the bottom of ai_activity.proto are for the AI only or if they are also for the special messages needed anytime a hero does something nifty. In any even the level up ability part doesn't seem to be there.
+
+Apparently there is CUserMsg_Train not sure what it is though
+
+
+
