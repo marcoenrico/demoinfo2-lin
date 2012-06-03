@@ -106,6 +106,11 @@ EDemoCommands CDemoFile::ReadMessageType( int *pTick, bool *pbCompressed )
 	return ( EDemoCommands )Cmd;
 }
 
+/**
+ * @param pMsg The demo message to parse the uncompressed buffer
+ * @param bCompressed - Whether or not the message is compressed
+ * @param 
+ */ 
 bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, int *pUncompressedSize )
 {
 	int Size = ReadVarInt32( m_fileBuffer, m_fileBufferPos );
@@ -114,7 +119,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 	{
 		*pSize = Size;
 	}
-	if( pUncompressedSize )
+	if( pUncompressedSize )//Assume we set this to zero so it doesn't get used by accident
 	{
 		*pUncompressedSize = 0;
 	}
@@ -125,7 +130,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 		return false;
 	}
 
-	if( pMsg )
+	if( pMsg )//we don't bother actually reading it if they don't care about the results.
 	{
 		const char *parseBuffer = &m_fileBuffer[ m_fileBufferPos ];
 		m_fileBufferPos += Size;
@@ -143,7 +148,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 						*pUncompressedSize = uDecompressedLen;
 					}
 
-					m_parseBufferSnappy.resize( uDecompressedLen );
+					m_parseBufferSnappy.resize( uDecompressedLen );//we checked how big it was now we give ourselves the space
 					char *parseBufferUncompressed = &m_parseBufferSnappy[ 0 ];
 
 					if ( snappy::RawUncompress( parseBuffer, Size, parseBufferUncompressed ) )
@@ -161,15 +166,19 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 			return false;
 		}
 
-		return pMsg->GetProtoMsg().ParseFromArray( parseBuffer, Size );
+		return pMsg->GetProtoMsg().ParseFromArray( parseBuffer, Size ); //I would have put this in an else
 	}
-	else
+	else//even if they don't care about the message we still need to move past the message we were supposed to read
 	{
 		m_fileBufferPos += Size;
 		return true;
 	}
 }
 
+/**
+ * Opens a file and reads the entire thing into memory and check that it appears to be the right type
+ * @param name the name of the file to open
+ */ 
 bool CDemoFile::Open( const char *name )
 {
 	Close();//Initializes the values
