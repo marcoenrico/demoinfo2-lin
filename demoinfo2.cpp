@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include "demofiledump.h"
 
+/**
+ * Wrapper around DemoFileDump.DoDump()
+ *
+ */ 
 int main( int argc, char *argv[] )
 {
 	CDemoFileDump DemoFileDump;
