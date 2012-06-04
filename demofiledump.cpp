@@ -51,6 +51,9 @@ void fatal_errorf( const char* fmt, ... )
     exit( -1 );
 }
 
+/**
+ * Passes to CDemoFile.Open() and does minor error checking
+ */ 
 bool CDemoFileDump::Open( const char *filename )
 {
 	if ( !m_demofile.Open( filename ) )
@@ -62,6 +65,9 @@ bool CDemoFileDump::Open( const char *filename )
 	return true;
 }
 
+/**
+ * Prints out the typeof a message and then feeds text to printf..
+ */ 
 void CDemoFileDump::MsgPrintf( const ::google::protobuf::Message& msg, int size, const char *fmt, ... )
 {
 	va_list vlist;
@@ -75,6 +81,9 @@ void CDemoFileDump::MsgPrintf( const ::google::protobuf::Message& msg, int size,
 	va_end( vlist );
 }
 
+/**
+ * Decodes and prints a UserMessage
+ */ 
 template < class T, int msgType >
 void PrintUserMessage( CDemoFileDump& Demo, const void *parseBuffer, int BufferSize )
 {
@@ -86,6 +95,11 @@ void PrintUserMessage( CDemoFileDump& Demo, const void *parseBuffer, int BufferS
 	}
 }
 
+/**
+ * Handles a user message
+ *
+ * All of the user messages are transmitted inside of the NetMessage CSVCMsg_UserMessage
+ */ 
 void CDemoFileDump::DumpUserMessage( const void *parseBuffer, int BufferSize )
 {
 	CSVCMsg_UserMessage userMessage;
@@ -173,6 +187,9 @@ void CDemoFileDump::DumpUserMessage( const void *parseBuffer, int BufferSize )
 	}
 }
 
+/**
+ * Usese the standard debug prints prepared by protocol buff, also copies GameEventList to the Demo state if received.
+ */
 template < class T, int msgType >
 void PrintNetMessage( CDemoFileDump& Demo, const void *parseBuffer, int BufferSize )
 {
@@ -182,7 +199,7 @@ void PrintNetMessage( CDemoFileDump& Demo, const void *parseBuffer, int BufferSi
 	{
 		if( msgType == svc_GameEventList )
 		{
-			Demo.m_GameEventList.CopyFrom( msg );
+			Demo.m_GameEventList.CopyFrom( msg );//unclear why this isn't broken up into a separate class
 		}
 
 		Demo.MsgPrintf( msg, BufferSize, "%s", msg.DebugString().c_str() );
@@ -195,6 +212,12 @@ void PrintNetMessage< CSVCMsg_UserMessage, svc_UserMessage >( CDemoFileDump& Dem
 	Demo.DumpUserMessage( parseBuffer, BufferSize );
 }
 
+/**
+ * Prints out a game event in more detail it appears
+ * @param Demo a Reference to our state tracking class
+ * @param parseBuffer a pointer to the uncompressed buffer containing the encoded message
+ * @param BufferSize how long the buffer is.
+ */ 
 template <>
 void PrintNetMessage< CSVCMsg_GameEvent, svc_GameEvent >( CDemoFileDump& Demo, const void *parseBuffer, int BufferSize )
 {
@@ -210,9 +233,9 @@ void PrintNetMessage< CSVCMsg_GameEvent, svc_GameEvent >( CDemoFileDump& Demo, c
 
 			if( Descriptor.eventid() == msg.eventid() )
 				break;
-		}
+		}//We appear to be going through to find the corresponding game event currently stored for the demofile. It's not clear what these are yet.
 
-		if( iDescriptor == Demo.m_GameEventList.descriptors().size() )
+		if( iDescriptor == Demo.m_GameEventList.descriptors().size() )//If we didn't find one that matched.
 		{
 			printf( "%s", msg.DebugString().c_str() );
 		}
@@ -229,7 +252,8 @@ void PrintNetMessage< CSVCMsg_GameEvent, svc_GameEvent >( CDemoFileDump& Demo, c
 				const CSVCMsg_GameEventList::key_t& Key = Descriptor.keys( i );
 				const CSVCMsg_GameEvent::key_t& KeyValue = msg.keys( i );
 
-				printf(" %s: ", Key.name().c_str() );
+				printf(" %s: ", Key.name().c_str() );//It appears that the names for the keys are stored globally. Perhaps this
+        //is what the string tables are for. Communicated from the server as part of the loading screen perhaps?
 
 				if( KeyValue.has_val_string() )
 					printf( "%s ", KeyValue.val_string().c_str() );
@@ -252,6 +276,9 @@ void PrintNetMessage< CSVCMsg_GameEvent, svc_GameEvent >( CDemoFileDump& Demo, c
 	}
 }
 
+/**
+ * Converts a message code to a friendly name for the dump.
+ */ 
 static std::string GetNetMsgName( int Cmd )
 {
 	if( NET_Messages_IsValid( Cmd ) )
@@ -267,21 +294,26 @@ static std::string GetNetMsgName( int Cmd )
 	return "NETMSG_???";
 }
 
+/**
+ * Demo packets apparently contain the other types of messages.
+ */ 
 void CDemoFileDump::DumpDemoPacket( const std::string& buf )
 {
 	size_t index = 0;
 
+  //Just keep reading through until we run out of space for possible messages in the packet. They should add up precisely.
 	while( index < buf.size() )
 	{
 		int Cmd = ReadVarInt32( buf, index );
 		uint32 Size = ReadVarInt32( buf, index );
+    //Within a packet it appears that each message has it's type and then it's size
 
 		if( index + Size > buf.size() )
 		{
 			const std::string& strName = GetNetMsgName( Cmd );
 
 			fatal_errorf( "buf.ReadBytes() failed. Cmd:%d '%s' \n", Cmd, strName.c_str() );
-		}
+		}//This is sensible error checking seeing that we won't read too far
 
 		switch( Cmd )
 		{
@@ -317,7 +349,7 @@ void CDemoFileDump::DumpDemoPacket( const std::string& buf )
 		HANDLE_SvcMsg( SplitScreen );       // 22
 		HANDLE_SvcMsg( UserMessage );       // 23
 		//$ HANDLE_SvcMsg( EntityMessage ); // 24
-		HANDLE_SvcMsg( GameEvent );         // 25
+		HANDLE_SvcMsg( GameEvent );         // 25 - This one might be the interesting one
 		HANDLE_SvcMsg( PacketEntities );    // 26
 		HANDLE_SvcMsg( TempEntities );      // 27
 		HANDLE_SvcMsg( Prefetch );          // 28
@@ -333,6 +365,9 @@ void CDemoFileDump::DumpDemoPacket( const std::string& buf )
 	}
 }
 
+/**
+ * Prints out a string table. The comment below is correct they are quite big.
+ */ 
 static bool DumpDemoStringTable( CDemoFileDump& Demo, const CDemoStringTables& StringTables )
 {
 	for( int i = 0; i < StringTables.tables().size(); i++ )
@@ -385,6 +420,9 @@ static bool DumpDemoStringTable( CDemoFileDump& Demo, const CDemoStringTables& S
 	return true;
 }
 
+/**
+ * Prints out a short header for the demo message
+ */ 
 void CDemoFileDump::PrintDemoHeader( EDemoCommands DemoCommand, int tick, int size, int uncompressed_size )
 {
 	const std::string& DemoCommandName = EDemoCommands_Name( DemoCommand );
@@ -393,6 +431,17 @@ void CDemoFileDump::PrintDemoHeader( EDemoCommands DemoCommand, int tick, int si
 		m_nFrameNumber, tick, DemoCommandName.c_str(), size, uncompressed_size );
 }
 
+
+/**
+ * Decodes and prints a message of a given type.
+ * The autogenerated classes contain the information on their size
+ *
+ * @param Demo A Reference to the Demo which contains the global state
+ * @param bCompressed True if the message to be read is expected to be compressed
+ * @param tick The tick# this message occurs at
+ * @param size a reference to pass back the size of the message as read
+ * @param uncompressed_size a reference to pass back the size of the message after it was decompressed
+ */ 
 template < class DEMCLASS >
 void PrintDemoMessage( CDemoFileDump& Demo, bool bCompressed, int tick, int& size, int& uncompressed_size )
 {
@@ -403,9 +452,15 @@ void PrintDemoMessage( CDemoFileDump& Demo, bool bCompressed, int tick, int& siz
 		Demo.PrintDemoHeader( Msg.GetType(), tick, size, uncompressed_size );
 
 		Demo.MsgPrintf( Msg, size, "%s", Msg.DebugString().c_str() );
+    //This will print the default string encoding produced by the protobuf implementation
 	}
 }
 
+
+/**
+ * Same as the generic implemenation except for using a specific print method.
+ *
+ */
 template <>
 void PrintDemoMessage<CDemoStringTables_t>( CDemoFileDump& Demo, bool bCompressed, int tick, int& size, int& uncompressed_size )
 {
@@ -419,6 +474,9 @@ void PrintDemoMessage<CDemoStringTables_t>( CDemoFileDump& Demo, bool bCompresse
 	}
 }
 
+/**
+ * Performs the processing after the file is read into the buffer
+ */ 
 void CDemoFileDump::DoDump()
 {
 	bool bStopReading = false;
@@ -438,7 +496,7 @@ void CDemoFileDump::DoDump()
 		switch( DemoCommand )
 		{
 #define HANDLE_DemoMsg( _x )	case DEM_ ## _x: PrintDemoMessage< CDemo ## _x ## _t >( *this, bCompressed, tick, size, uncompressed_size ); break
-
+//This Macro shows some of the handy things that can be done with the C preprocessor. The ## is used to concatenate the tokens to either side
 		HANDLE_DemoMsg( FileHeader );
 		HANDLE_DemoMsg( FileInfo );
 		HANDLE_DemoMsg( Stop );
@@ -453,6 +511,7 @@ void CDemoFileDump::DoDump()
 
 #undef HANDLE_DemoMsg
 
+    //Not sure what a FullPacket is yet other than it contains a bunch of strings.
 		case DEM_FullPacket:
 			{
 				CDemoFullPacket_t FullPacket;

@@ -27,6 +27,9 @@
 #include "demofile.h"
 #include "snappy.h"
 
+/**
+ * Decodes a uint32 from the string of variable length and updates the index into the buffer
+ */ 
 uint32 ReadVarInt32( const std::string& buf, size_t& index )
 {
 	uint32 b;
@@ -63,33 +66,51 @@ CDemoFile::CDemoFile() :
 
 CDemoFile::~CDemoFile()
 {
-	Close();
+	Close();//unclear why they are closing this
 }
 
+/**
+ * Checks if the end of the file buffer has been reached
+ *
+ * @return true if the buffer has been finished
+ */ 
 bool CDemoFile::IsDone()
 {
 	return m_fileBufferPos >= m_fileBuffer.size();
 }
 
+/**
+ * Determine which of the messages in demo.proto comes next.
+ *
+ * @param pTick Optional Will provide the updated tick count with the message
+ * @param pbCompressed Optional Will be true if the following message is compressed
+ * @return The type of the message that should come next in the file
+ */ 
 EDemoCommands CDemoFile::ReadMessageType( int *pTick, bool *pbCompressed )
 {
+
 	uint32 Cmd = ReadVarInt32( m_fileBuffer, m_fileBufferPos );
 
-	if( pbCompressed )
-		*pbCompressed = !!( Cmd & DEM_IsCompressed );
+	if( pbCompressed )//This is a null check
+		*pbCompressed = !!( Cmd & DEM_IsCompressed );//Double negation to go from uint32 to bool without truncation issues.
 
-	Cmd = ( Cmd & ~DEM_IsCompressed );
+	Cmd = ( Cmd & ~DEM_IsCompressed );//the second three bits (0x70) are being used to say if it's compressed not sure why 3 bits. This may increase the total number of allowable values in overloaded field
 
 	int Tick = ReadVarInt32( m_fileBuffer, m_fileBufferPos );
-	if( pTick )
+	if( pTick )//Another null check
 		*pTick = Tick;
 
-	if( m_fileBufferPos >= m_fileBuffer.size() )
-		return DEM_Error;
+	if( m_fileBufferPos >= m_fileBuffer.size() )//This would indicate that we'd finished the string already.
+		return DEM_Error;//If we'd actually gone > rather than = random memory would have been read.
 
 	return ( EDemoCommands )Cmd;
 }
 
+/**
+ * @param pMsg The demo message to parse the uncompressed buffer
+ * @param bCompressed - Whether or not the message is compressed
+ * @param 
+ */ 
 bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, int *pUncompressedSize )
 {
 	int Size = ReadVarInt32( m_fileBuffer, m_fileBufferPos );
@@ -98,7 +119,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 	{
 		*pSize = Size;
 	}
-	if( pUncompressedSize )
+	if( pUncompressedSize )//Assume we set this to zero so it doesn't get used by accident
 	{
 		*pUncompressedSize = 0;
 	}
@@ -109,7 +130,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 		return false;
 	}
 
-	if( pMsg )
+	if( pMsg )//we don't bother actually reading it if they don't care about the results.
 	{
 		const char *parseBuffer = &m_fileBuffer[ m_fileBufferPos ];
 		m_fileBufferPos += Size;
@@ -127,7 +148,7 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 						*pUncompressedSize = uDecompressedLen;
 					}
 
-					m_parseBufferSnappy.resize( uDecompressedLen );
+					m_parseBufferSnappy.resize( uDecompressedLen );//we checked how big it was now we give ourselves the space
 					char *parseBufferUncompressed = &m_parseBufferSnappy[ 0 ];
 
 					if ( snappy::RawUncompress( parseBuffer, Size, parseBufferUncompressed ) )
@@ -145,18 +166,22 @@ bool CDemoFile::ReadMessage( IDemoMessage *pMsg, bool bCompressed, int *pSize, i
 			return false;
 		}
 
-		return pMsg->GetProtoMsg().ParseFromArray( parseBuffer, Size );
+		return pMsg->GetProtoMsg().ParseFromArray( parseBuffer, Size ); //I would have put this in an else
 	}
-	else
+	else//even if they don't care about the message we still need to move past the message we were supposed to read
 	{
 		m_fileBufferPos += Size;
 		return true;
 	}
 }
 
+/**
+ * Opens a file and reads the entire thing into memory and check that it appears to be the right type
+ * @param name the name of the file to open
+ */ 
 bool CDemoFile::Open( const char *name )
 {
-	Close();
+	Close();//Initializes the values
 
 	FILE *fp = fopen( name, "rb" );
 	if( fp )
@@ -166,7 +191,7 @@ bool CDemoFile::Open( const char *name )
 
 		fseek( fp, 0, SEEK_END );
 		Length = ftell( fp );
-		fseek( fp, 0, SEEK_SET );
+		fseek( fp, 0, SEEK_SET );//This was just to get the size.
 
 		if( Length < sizeof( DotaDemoHeader ) )
 		{
@@ -183,13 +208,14 @@ bool CDemoFile::Open( const char *name )
 			return false;
 		}
 
-		m_fileBuffer.resize( Length );
+		m_fileBuffer.resize( Length );//apparently we read in the entire file into memory at once
 		fread( &m_fileBuffer[ 0 ], 1, Length, fp );
-
 		fclose( fp );
 		fp = NULL;
 	}
 
+  //This is the wrong way to check the return value. They should be checking that
+  //they read in the expected length.
 	if ( !m_fileBuffer.size() )
 	{
 		fprintf( stderr, "CDemoFile::Open: couldn't open file %s.\n", name );
@@ -202,6 +228,10 @@ bool CDemoFile::Open( const char *name )
 	return true;
 }
 
+/**
+ * Initializes the per file values
+ *
+ */ 
 void CDemoFile::Close()
 {
 	m_szFileName.clear();
