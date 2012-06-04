@@ -14,4 +14,7 @@ It's unclear if the DOTA specific messages at the bottom of ai_activity.proto ar
 Apparently there is CUserMsg_Train not sure what it is though
 
 
+Three bits are used to mark compression with the use of 0x70. This seems a bit peculiar.
+
+
 
